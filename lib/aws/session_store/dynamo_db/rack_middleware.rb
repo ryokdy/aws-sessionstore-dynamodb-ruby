@@ -12,12 +12,6 @@ module Aws::SessionStore::DynamoDB
       set_locking_strategy
     end
 
-    private
-
-    def set_locking_strategy
-      @lock = Aws::SessionStore::DynamoDB::Locking::Null.new(@config)
-    end
-
     # Gets session data.
     def find_session(req, sid)
       if req.session.options[:skip]
@@ -30,6 +24,23 @@ module Aws::SessionStore::DynamoDB
         [sid, session]
       end
     end
+
+    def write_session(req, sid, session, options)
+      @lock.set_session_data(req.env, get_session_id_with_fallback(sid), session, options)
+      sid
+    end
+
+    def delete_session(req, sid, options)
+      @lock.delete_session(req.env, get_session_id_with_fallback(sid))
+      generate_sid unless options[:drop]
+    end
+
+    private
+
+    def set_locking_strategy
+      @lock = Aws::SessionStore::DynamoDB::Locking::Null.new(@config)
+    end
+
 
     # Generate HMAC hash based on MD5
     def generate_hmac(sid, secret)
@@ -51,16 +62,6 @@ module Aws::SessionStore::DynamoDB
       else
         sid.private_id
       end
-    end
-
-    def write_session(req, sid, session, options)
-      @lock.set_session_data(req.env, get_session_id_with_fallback(sid), session, options)
-      sid
-    end
-
-    def delete_session(req, sid, options)
-      @lock.delete_session(req.env, get_session_id_with_fallback(sid))
-      generate_sid unless options[:drop]
     end
   end
 end
